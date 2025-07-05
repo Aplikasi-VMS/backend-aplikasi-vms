@@ -1,0 +1,68 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  name      String
+  email  String   @unique
+  password  String
+  role      Role
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Device {
+  id        Int      @id @default(autoincrement())
+  name      String
+  deviceKey String   @unique
+  groupId   String
+  location  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  attendances Attendance[]
+}
+
+model Visitor {
+  id        Int      @id @default(autoincrement())
+  name      String
+  idcardNum String   @unique
+  imgBase64 String
+  type      Int      // 1: wajah; 2: kartu ic; 3: wajah dan kartu ic
+  passtime  String?
+  md5       String
+
+  attendances Attendance[]
+}
+
+model Attendance {
+  id         Int      @id @default(autoincrement())
+  visitorId  Int
+  deviceId   Int
+  time       DateTime
+  type       String   // face_0, face_1, face_2, face_3, card_0, etc
+  extra      Json?
+  createdAt  DateTime @default(now())
+
+  visitor Visitor @relation(fields: [visitorId], references: [id])
+  device  Device  @relation(fields: [deviceId], references: [id])
+}
+
+enum Role {
+  SUPERUSER
+  ADMIN
+  RECEPTIONIST
+}
