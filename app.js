@@ -4,6 +4,7 @@ import authRouter from "./routes/auth.routes.js";
 import userRouter from "./routes/user.routes.js";
 import deviceRouter from "./routes/device.routes.js";
 import cors from "cors";
+import visitorRouter from "./routes/visitor.routes.js";
 import prisma from "./lib/prisma_client.js";
 
 const app = express();
@@ -12,7 +13,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cors({
     origin: 'http://localhost:3000',
-    credentials: true, 
+    credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization']
 }));
@@ -20,6 +21,7 @@ app.use(cors({
 app.use('/api/auth',authRouter)
 app.use('/api/users', userRouter);
 app.use('/api/devices', deviceRouter);
+app.use('/api/visitors', visitorRouter);
 
 app.listen(PORT, () => {
     console.log(`Server is running on port http://localhost:${PORT}`);

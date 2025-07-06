@@ -52,3 +52,22 @@ export const deleteVisitor = async (req, res, next) => {
     next(error);
   }
 };
+
+export const getVisitorById = async (req, res, next) => {
+  const { id } = req.params;
+  try {
+
+    const visitor = await prisma.visitor.findUnique({
+      where: {
+        id: parseInt(id)
+      }
+    });
+
+    return res.json({
+      success: 'true',
+      data : visitor
+    })
+  } catch (error) {
+    next(error);
+  }
+}

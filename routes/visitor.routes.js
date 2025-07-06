@@ -1,14 +1,15 @@
 import express from 'express';
-import { authorize, authorizeRole } from '../middlewares/auth.js';
-import { getAllVisitors, addVisitor, updateVisitor, deleteVisitor } from '../controllers/visitor.controller.js';
+import { authorizeRole, authorize } from '../middlewares/auth.middleware.js';
+import { getAllVisitors, addVisitor, updateVisitor, deleteVisitor, getVisitorById } from '../controllers/visitor.controller.js';
 
-const router = express.Router();
+const visitorRouter = express.Router();
 
-router.use(authorize); 
+visitorRouter.use(authorize);
 
-router.get('/', authorizeRole('SUPERUSER', 'ADMIN', 'RECEPTIONIST'), getAllVisitors);
-router.post('/', authorizeRole('SUPERUSER', 'ADMIN'), addVisitor);
-router.put('/:id', authorizeRole('SUPERUSER', 'ADMIN'), updateVisitor);
-router.delete('/:id', authorizeRole('SUPERUSER'), deleteVisitor);
+visitorRouter.get('/', authorizeRole('SUPERUSER', 'RECEPTIONIST'), getAllVisitors);
+visitorRouter.get('/:id', authorizeRole('SUPERUSER', 'RECEPTIONIST'), getVisitorById);
+visitorRouter.post('/', authorizeRole('SUPERUSER', 'RECEPTIONIST'), addVisitor);
+visitorRouter.put('/:id', authorizeRole('SUPERUSER', 'RECEPTIONIST'), updateVisitor);
+visitorRouter.delete('/:id', authorizeRole('SUPERUSER', 'RECEPTIONIST'), deleteVisitor);
 
-export default router;
+export default visitorRouter;
