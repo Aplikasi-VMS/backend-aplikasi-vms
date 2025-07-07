@@ -23,9 +23,10 @@ app.use('/api/users', userRouter);
 app.use('/api/devices', deviceRouter);
 app.use('/api/visitors', visitorRouter);
 
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
     console.log(`Server is running on port ${PORT}`);
 });
+
 
 process.on('SIGINT', async () => {
   await prisma.$disconnect();
