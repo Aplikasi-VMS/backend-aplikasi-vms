@@ -17,7 +17,7 @@ datasource db {
 model User {
   id        Int      @id @default(autoincrement())
   name      String
-  email  String   @unique
+  email     String   @unique
   password  String
   role      Role
   createdAt DateTime @default(now())
@@ -41,24 +41,28 @@ model Visitor {
   name      String
   idcardNum String   @unique
   imgBase64 String
-  type      Int      // 1: wajah; 2: kartu ic; 3: wajah dan kartu ic
+  type      Int // 1: wajah; 2: kartu ic; 3: wajah dan kartu ic
   passtime  String?
-  md5       String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   attendances Attendance[]
 }
 
 model Attendance {
-  id         Int      @id @default(autoincrement())
-  visitorId  Int
-  deviceId   Int
-  time       DateTime
-  type       String   // face_0, face_1, face_2, face_3, card_0, etc
-  extra      Json?
-  createdAt  DateTime @default(now())
+  id        Int      @id @default(autoincrement())
+  visitorId Int?
+  deviceId  Int
+  groupId   String
+  recordId  String
+  imgBase64 String
+  time      DateTime
+  type      String
+  extra     Json?
+  createdAt DateTime @default(now())
 
-  visitor Visitor @relation(fields: [visitorId], references: [id])
-  device  Device  @relation(fields: [deviceId], references: [id])
+  visitor Visitor? @relation(fields: [visitorId], references: [id])
+  device  Device   @relation(fields: [deviceId], references: [id])
 }
 
 enum Role {

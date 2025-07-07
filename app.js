@@ -12,7 +12,7 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cors({
-    origin: 'http://localhost:3000',
+    origin: true,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization']
@@ -24,7 +24,7 @@ app.use('/api/devices', deviceRouter);
 app.use('/api/visitors', visitorRouter);
 
 app.listen(PORT, () => {
-    console.log(`Server is running on port http://localhost:${PORT}`);
+    console.log(`Server is running on port ${PORT}`);
 });
 
 process.on('SIGINT', async () => {

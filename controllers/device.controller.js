@@ -14,8 +14,6 @@ export const getAllDevices = async (req, res, next) => {
           }
         }
       : {};
-
-    // Untuk case-insensitive count di Prisma 6.x
     const total = await prisma.device.count({
       where: whereCondition
     });
@@ -102,3 +100,4 @@ export const getDeviceById = async (req, res, next) => {
     next(error);
   }
 }
+

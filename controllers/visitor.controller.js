@@ -1,20 +1,70 @@
 import prisma from '../lib/prisma_client.js';
+import crypto from 'crypto';
+
+function md5(data) {
+  return crypto.createHash('md5').update(data).digest('hex');
+}
 
 export const getAllVisitors = async (req, res, next) => {
   try {
-    const visitors = await prisma.visitor.findMany();
-    res.json({ success: true, data: visitors });
+    const { search = '', page = 1, limit = 10 } = req.query;
+
+    const take = parseInt(limit);
+    const skip = (parseInt(page) - 1) * take;
+
+    const whereCondition = search
+      ? {
+        name: {
+          contains: search,
+        }
+      }
+      : {};
+
+    const total = await prisma.visitor.count({
+      where: whereCondition,
+    });
+
+    const visitors = await prisma.visitor.findMany({
+      where: whereCondition,
+      skip,
+      take,
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        name: true,
+        idcardNum: true,
+        imgBase64: true,
+        type: true,
+        passtime: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    const filteredVisitors = search
+      ? visitors.filter(visitor =>
+        visitor.name.toLowerCase().includes(search.toLowerCase()))
+      : visitors;
+
+    res.json({
+      success: true,
+      data: filteredVisitors,
+      page: parseInt(page),
+      limit: take,
+      total
+    });
   } catch (error) {
     next(error);
   }
 };
 
+
 export const addVisitor = async (req, res, next) => {
   try {
-    const { name, idcardNum, imgBase64, type, passtime, md5 } = req.body;
+    const { name, idcardNum, imgBase64, type, passtime } = req.body;
 
     const newVisitor = await prisma.visitor.create({
-      data: { name, idcardNum, imgBase64, type, passtime, md5 }
+      data: { name, idcardNum, imgBase64, type, passtime }
     });
 
     res.status(201).json({ success: true, data: newVisitor });
@@ -65,9 +115,113 @@ export const getVisitorById = async (req, res, next) => {
 
     return res.json({
       success: 'true',
-      data : visitor
+      data: visitor
     })
   } catch (error) {
     next(error);
   }
 }
+
+export const getPersonList = async (req, res, next) => {
+  try {
+    const page = parseInt(req.body.page) || 1;
+    const limit = parseInt(req.body.pageSize) || 1000;
+
+    const skip = (page - 1) * limit;
+
+    const visitors = await prisma.visitor.findMany({
+      skip,
+      take: limit,
+      orderBy: { id: 'asc' },
+    });
+
+    if (visitors.length === 0) {
+      return res.json({
+        msg: "sukses",
+        result: 1,
+        success: true,
+        total: 0,
+        data: [],
+      });
+    }
+
+    const formatted = visitors.map(v => {
+      const nameMd5 = md5('');
+      const imgMd5 = md5('');
+      const typeMd5 = md5(v.type.toString());
+      const passtimeMd5 = md5('');
+      const finalMd5 = md5(nameMd5 + imgMd5 + typeMd5 + passtimeMd5);
+
+      return {
+        idcardNum: v.idcardNum,
+        name: "",
+        imgBase64: "",
+        type: 1,
+        passtime: "",
+        md5: finalMd5,
+      };
+    });
+
+    res.json({
+      msg: "sukses",
+      result: 1,
+      success: true,
+      total: formatted.length,
+      data: formatted,
+    });
+
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getPersonInfo = async (req, res, next) => {
+  try {
+    const { idcardNum } = req.body;
+
+    if (!idcardNum) {
+      return res.status(400).json({
+        msg: "idcardNum is required",
+        result: 0,
+        success: false,
+      });
+    }
+
+    const visitor = await prisma.visitor.findUnique({
+      where: { idcardNum },
+    });
+
+    if (!visitor) {
+      return res.status(404).json({
+        msg: "Visitor not found",
+        result: 0,
+        success: false,
+      });
+    }
+
+    const nameMd5 = md5(visitor.name);
+    const imgMd5 = md5(visitor.imgBase64);
+    const typeMd5 = md5(visitor.type.toString());
+    const passtimeMd5 = md5('');
+
+    const finalMd5 = md5(nameMd5 + imgMd5 + typeMd5 + passtimeMd5);
+
+    res.json({
+      msg: "sukses",
+      result: 1,
+      success: true,
+      data: {
+        idcardNum: visitor.idcardNum,
+        name: visitor.name,
+        imgBase64: visitor.imgBase64,
+        type: visitor.type,
+        passtime: "",
+        md5: finalMd5,
+      },
+    });
+
+  } catch (error) {
+    console.error("getPersonInfo error:", error);
+    next(error);
+  }
+};
