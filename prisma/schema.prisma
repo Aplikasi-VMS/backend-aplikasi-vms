@@ -40,7 +40,7 @@ model Visitor {
   id        Int      @id @default(autoincrement())
   name      String
   idcardNum String   @unique
-  imgBase64 String
+  imgBase64 String   @db.LongText
   type      Int // 1: wajah; 2: kartu ic; 3: wajah dan kartu ic
   passtime  String?
   createdAt DateTime @default(now())
@@ -55,7 +55,7 @@ model Attendance {
   deviceId  Int
   groupId   String
   recordId  String
-  imgBase64 String
+  imgBase64 String   @db.LongText
   time      DateTime
   type      String
   extra     Json?
