@@ -7,8 +7,6 @@ const errorMiddleware = (err, req, res, next) => {
     let error = { ...err };
     error.message = err.message;
 
-    console.error(err); // log full error untuk debugging
-
     // Prisma: Record not found
     if (err instanceof Prisma.PrismaClientKnownRequestError) {
       if (err.code === 'P2025') {
