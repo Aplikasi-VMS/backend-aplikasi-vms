@@ -55,11 +55,11 @@ export const getAllUsers = async (req, res, next) => {
 
 export const addUser = async (req, res, next) => {
   try {
-    const { name, username, password, role } = req.body;
+    const { name, email, password, role } = req.body;
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const newUser = await prisma.user.create({
-      data: { name, username, password: hashedPassword, role }
+      data: { name, email, password: hashedPassword, role }
     });
 
     res.status(201).json({ success: true, data: newUser });
@@ -71,7 +71,7 @@ export const addUser = async (req, res, next) => {
 export const updateUser = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { name, username, password, role } = req.body;
+    const { name, email, password, role } = req.body;
 
     const hashedPassword = password ? await bcrypt.hash(password, 10) : undefined;
 
@@ -79,7 +79,7 @@ export const updateUser = async (req, res, next) => {
       where: { id: parseInt(id) },
       data: {
         name,
-        username,
+        email,
         role,
         ...(hashedPassword && { password: hashedPassword })
       }
