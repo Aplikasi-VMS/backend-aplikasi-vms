@@ -7,6 +7,7 @@ import cors from "cors";
 import visitorRouter from "./routes/visitor.routes.js";
 import prisma from "./lib/prisma_client.js";
 import attendanceRouter from "./routes/attendance.routes.js";
+import statsRouter from "./routes/stats.routes.js";
 
 const app = express();
 
@@ -25,7 +26,7 @@ app.use('/api/users', userRouter);
 app.use('/api/devices', deviceRouter);
 app.use('/api/visitors', visitorRouter);
 app.use('/api/attendances', attendanceRouter);
-app.use('/api/stats', )
+app.use('/api/stats', statsRouter);
 
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`Server is running on port ${PORT}`);

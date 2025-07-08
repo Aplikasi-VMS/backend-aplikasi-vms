@@ -1,10 +1,10 @@
 import express from 'express';
 import { getVisitorStats, getDeviceUsage, getUserRoles } from '../controllers/stats.controller.js';
 
-const router = express.Router();
+const statsRouter = express.Router();
 
-router.get('/visitors/stats', getVisitorStats);
-router.get('/devices/stats', getDeviceUsage);
-router.get('/users/stats', getUserRoles);
+statsRouter.get('/visitors/', getVisitorStats);
+statsRouter.get('/devices/', getDeviceUsage);
+statsRouter.get('/users/', getUserRoles);
 
-export default router;
+export default statsRouter;
