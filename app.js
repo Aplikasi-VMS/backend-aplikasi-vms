@@ -8,11 +8,13 @@ import visitorRouter from "./routes/visitor.routes.js";
 import prisma from "./lib/prisma_client.js";
 import attendanceRouter from "./routes/attendance.routes.js";
 import statsRouter from "./routes/stats.routes.js";
+import errorMiddleware from "./middlewares/error.middleware.js";
 
 const app = express();
 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: false, limit: '10mb' }));
+app.use(errorMiddleware);
 
 app.use(cors({
     origin: true,
