@@ -25,6 +25,7 @@ app.use('/api/users', userRouter);
 app.use('/api/devices', deviceRouter);
 app.use('/api/visitors', visitorRouter);
 app.use('/api/attendances', attendanceRouter);
+app.use('/api/stats', )
 
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`Server is running on port ${PORT}`);

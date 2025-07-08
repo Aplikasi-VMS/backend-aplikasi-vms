@@ -9,10 +9,10 @@ export const getAllDevices = async (req, res, next) => {
 
     const whereCondition = search
       ? {
-          name: {
-            contains: search,
-          }
+        name: {
+          contains: search,
         }
+      }
       : {};
     const total = await prisma.device.count({
       where: whereCondition
@@ -27,7 +27,7 @@ export const getAllDevices = async (req, res, next) => {
 
     const filteredDevices = search
       ? devices.filter(device =>
-          device.name.toLowerCase().includes(search.toLowerCase()))
+        device.name.toLowerCase().includes(search.toLowerCase()))
       : devices;
 
     res.json({
@@ -95,7 +95,7 @@ export const getDeviceById = async (req, res, next) => {
       }
     });
 
-    res.json({success: true, data : device})
+    res.json({ success: true, data: device })
   } catch (error) {
     next(error);
   }

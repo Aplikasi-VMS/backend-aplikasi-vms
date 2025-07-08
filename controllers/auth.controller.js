@@ -31,14 +31,6 @@ export const login = async (req, res, next) => {
       { expiresIn: JWT_EXPIRES_IN }
     );
 
-    // // ✅ SET COOKIE di sini
-    // res.cookie('token', token, {
-    //   httpOnly: true,
-    //   sameSite: 'lax',
-    //   secure: false, // true jika production HTTPS
-    //   maxAge: 3600 * 1000, // 1 jam
-    // });
-
     res.status(200).json({
       success: true,
       message: "User signed in successfully",

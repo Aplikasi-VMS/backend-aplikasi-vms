@@ -10,10 +10,10 @@ export const getAllUsers = async (req, res, next) => {
 
     const whereCondition = search
       ? {
-          name: {
-            contains: search,
-          }
+        name: {
+          contains: search,
         }
+      }
       : {};
 
     const total = await prisma.user.count({
@@ -37,7 +37,7 @@ export const getAllUsers = async (req, res, next) => {
 
     const filteredUsers = search
       ? users.filter(user =>
-          user.name.toLowerCase().includes(search.toLowerCase()))
+        user.name.toLowerCase().includes(search.toLowerCase()))
       : users;
 
     res.json({
@@ -114,7 +114,7 @@ export const getUserById = async (req, res, next) => {
       }
     });
 
-    res.json({success: true, data : user})
+    res.json({ success: true, data: user })
   } catch (error) {
     next(error);
   }
