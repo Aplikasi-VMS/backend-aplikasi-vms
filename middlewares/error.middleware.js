@@ -1,86 +1,179 @@
-// middlewares/error.middleware.js
-import { PrismaClientKnownRequestError, PrismaClientValidationError } from '@prisma/client/runtime/library';
+import { PrismaClientKnownRequestError, PrismaClientValidationError, PrismaClientInitializationError } from '@prisma/client/runtime/library';
 import jwt from 'jsonwebtoken';
+import logger from '../lib/logger.js';
+
+// Enhanced sensitive data redaction
+function redactSensitiveData(body) {
+  if (!body || typeof body !== 'object') return body;
+
+  const sensitiveFields = [
+    'password',
+    'creditCard',
+    'token',
+    'authorization',
+    'refreshToken',
+    'pin',
+    'securityCode',
+    'cvv'
+  ];
+
+  return Object.entries(body).reduce((acc, [key, value]) => {
+    acc[key] = sensitiveFields.includes(key) ? '**REDACTED**' : value;
+    return acc;
+  }, {});
+}
 
 const errorMiddleware = (err, req, res, next) => {
+  // Initialize error object with safe defaults
+  const error = {
+    ...err,
+    message: err.message || 'An unexpected error occurred',
+    statusCode: err.statusCode || 500,
+    isOperational: Boolean(err.isOperational)
+  };
+
   try {
-    let error = { ...err };
-    error.message = err.message;
+    // Database Connection Errors
+    if (err instanceof PrismaClientInitializationError) {
+      error.message = 'Service temporarily unavailable. Please try again later.';
+      error.statusCode = 503;
+      error.isOperational = true;
 
-    // Prisma: Record not found (P2025)
+      logger.error('Database connection failure', {
+        type: 'DatabaseConnectionError',
+        message: 'Cannot establish database connection',
+        code: 'DB_CONNECTION_FAILED',
+        path: req.path,
+        method: req.method,
+        severity: 'CRITICAL',
+        timestamp: new Date().toISOString()
+      });
+
+      return res.status(503).json({
+        success: false,
+        error: error.message
+      });
+    }
+
+    // Prisma Known Errors
     if (err instanceof PrismaClientKnownRequestError) {
-      if (err.code === 'P2025') {
-        error.message = 'Resource not found.';
-        error.statusCode = 404;
+      switch (err.code) {
+        case 'P2025':
+          error.message = 'The requested resource was not found.';
+          error.statusCode = 404;
+          break;
+        case 'P2002':
+          const field = err.meta?.target?.join?.('_') || 'unknown_field';
+          error.message = `The ${field} must be unique.`;
+          error.statusCode = 409;
+          break;
+        case 'P2003':
+          error.message = 'Invalid reference to related resource.';
+          error.statusCode = 400;
+          break;
+        case 'P2016':
+          error.message = 'Invalid data format in query.';
+          error.statusCode = 400;
+          break;
+        default:
+          error.message = 'Database operation failed.';
+          error.statusCode = 400;
       }
 
-      // Prisma: Unique constraint failed (P2002)
-      if (err.code === 'P2002') {
-        const field = Array.isArray(err.meta?.target) ? err.meta.target.join(', ') : err.meta?.target;
-        error.message = `Duplicate entry for field: ${field || 'unknown field'}. Please use a unique value.`;
-        error.statusCode = 400;
-      }
-
-      // Prisma: Other known request errors
-      if (!error.statusCode) {
-        error.message = 'A database error occurred during your request.';
-        error.statusCode = 400;
-      }
+      logger.error('Database operation failed', {
+        type: 'DatabaseError',
+        code: err.code,
+        message: error.message,
+        path: req.path,
+        method: req.method,
+        severity: error.statusCode >= 500 ? 'ERROR' : 'WARNING',
+        timestamp: new Date().toISOString()
+      });
     }
+    // Prisma Validation Errors
+    else if (err instanceof PrismaClientValidationError) {
+      error.message = 'Invalid data provided for one or more fields.';
+      error.statusCode = 422;
 
-    // --- REFINED HANDLING FOR PrismaClientValidationError ---
-    if (err instanceof PrismaClientValidationError) {
-      // Parse the verbose Prisma validation message to be more user-friendly.
-      // Example message: "Argument `type`: Invalid value provided. Expected Int, provided String."
-      const validationMatch = err.message.match(/Argument `(.*?)`: Invalid value provided\. Expected (.*?), provided (.*?)\./);
-
-      if (validationMatch && validationMatch.length >= 4) {
-        const fieldName = validationMatch[1];
-        const expectedType = validationMatch[2];
-        // You can use 'providedType' if you want, but often 'expectedType' is enough.
-        // const providedType = validationMatch[3];
-        error.message = `Invalid value for '${fieldName}'. Expected a ${expectedType}.`;
-      } else {
-        // Fallback for other validation errors not matching the pattern
-        error.message = 'Invalid data provided for one or more fields. Please check your input.';
-      }
-      error.statusCode = 400;
+      logger.error('Validation failed', {
+        type: 'ValidationError',
+        message: err.message.split('\n')[0], // First line only
+        path: req.path,
+        method: req.method,
+        severity: 'WARNING',
+        timestamp: new Date().toISOString()
+      });
     }
-    // --- END REFINED HANDLING ---
-
-    // JWT errors
-    if (err.name === 'JsonWebTokenError') {
-      error.message = 'Authentication failed: Invalid token.';
+    // JWT Errors
+    else if (err instanceof jwt.JsonWebTokenError) {
+      error.message = 'Invalid authentication credentials.';
       error.statusCode = 401;
     }
-
-    if (err.name === 'TokenExpiredError') {
-      error.message = 'Authentication failed: Token expired. Please log in again.';
+    else if (err instanceof jwt.TokenExpiredError) {
+      error.message = 'Authentication session expired. Please log in again.';
       error.statusCode = 401;
     }
-
-    // Multer file upload error
-    if (err.code === 'LIMIT_FILE_SIZE') {
-      error.message = 'File size is too large. Max allowed size is 10MB.'; // Or whatever your limit is
+    // File Upload Errors
+    else if (err.code === 'LIMIT_FILE_SIZE') {
+      error.message = 'The uploaded file exceeds the maximum allowed size of 10MB.';
+      error.statusCode = 413;
+    }
+    // JSON Parse Errors
+    else if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
+      error.message = 'Invalid request data format.';
       error.statusCode = 400;
     }
-
-    // SyntaxError from body parser (e.g., malformed JSON)
-    if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
-      error.message = 'Invalid data format. Please ensure your request body is valid JSON.';
-      error.statusCode = 400;
+    // Custom Operational Errors
+    else if (error.isOperational) {
+      // Already has proper statusCode and message
+    }
+    // Unknown Errors
+    else {
+      logger.error('Unhandled system error', {
+        type: err.name || 'UnknownError',
+        message: err.message,
+        code: err.code || 'UNKNOWN',
+        stack: err.stack,
+        path: req.path,
+        method: req.method,
+        severity: 'ERROR',
+        timestamp: new Date().toISOString()
+      });
     }
 
-    // Default to a generic server error if no specific handling
-    res.status(error.statusCode || 500).json({
+    const response = {
       success: false,
-      error: error.message || 'An unexpected server error occurred.',
+      error: error.message,
+      ...(process.env.NODE_ENV === 'development' && {
+        details: {
+          type: err.name,
+          code: err.code
+        }
+      })
+    };
+
+    if (process.env.NODE_ENV === 'production' && error.statusCode >= 500) {
+      response.error = 'An internal server error occurred';
+      delete response.details;
+    }
+
+    return res.status(error.statusCode).json(response);
+
+  } catch (middlewareError) {
+    logger.error('Error middleware failure', {
+      type: 'MiddlewareError',
+      message: middlewareError.message,
+      originalError: {
+        message: err.message,
+        stack: err.stack
+      },
+      severity: 'EMERGENCY',
+      timestamp: new Date().toISOString()
     });
-  } catch (internalError) {
-    console.error('Error in errorMiddleware itself (critical!):', internalError);
-    res.status(500).json({
+
+    return res.status(500).json({
       success: false,
-      error: 'A critical server error occurred during error processing.',
+      error: 'A critical system error occurred'
     });
   }
 };

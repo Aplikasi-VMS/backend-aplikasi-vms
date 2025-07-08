@@ -68,7 +68,9 @@ export const addVisitor = async (req, res, next) => {
     });
 
     res.status(201).json({ success: true, data: newVisitor });
-  } catch (error) {
+  } 
+
+  catch (error) {
     next(error);
   }
 };
