@@ -124,7 +124,15 @@ export const getVisitorById = async (req, res, next) => {
 
 export const getPersonList = async (req, res, next) => {
   try {
-    const { deviceKey, page, pageSize } = req.body;
+    const { groupId, deviceKey, page, pageSize } = req.body;
+
+    if (!groupId || !deviceKey || !page || !pageSize) {
+      return res.status(400).json({
+        msg: "Missing required parameters (groupId, deviceKey, page, pageSize)",
+        result: 0,
+        success: false,
+      });
+    }
 
     const device = await prisma.device.findUnique({
       where: { deviceKey }
@@ -157,18 +165,19 @@ export const getPersonList = async (req, res, next) => {
     }
 
     const formatted = visitors.map(v => {
-      const nameMd5 = md5('');
-      const imgMd5 = md5('');
+      const nameMd5 = md5(v.name || "");
+      const imgMd5 = md5(v.imgBase64 || "");
       const typeMd5 = md5(v.type.toString());
-      const passtimeMd5 = md5('');
+      const passtimeMd5 = md5(v.passtime || "");
+
       const finalMd5 = md5(nameMd5 + imgMd5 + typeMd5 + passtimeMd5);
 
       return {
         idcardNum: v.idcardNum,
-        name: "",
-        imgBase64: "",
-        type: 1,
-        passtime: "",
+        name: v.name || "",
+        imgBase64: v.imgBase64 || "",
+        type: v.type,
+        passtime: v.passtime || "",
         md5: finalMd5,
       };
     });
@@ -187,10 +196,17 @@ export const getPersonList = async (req, res, next) => {
   }
 };
 
-
 export const getPersonInfo = async (req, res, next) => {
   try {
-    const { deviceKey, idcardNum } = req.body;
+    const { groupId, deviceKey, idcardNum } = req.body;
+
+    if (!groupId || !deviceKey || !idcardNum) {
+      return res.status(400).json({
+        msg: "Missing required parameters (groupId, deviceKey, idcardNum)",
+        result: 0,
+        success: false,
+      });
+    }
 
     const device = await prisma.device.findUnique({
       where: { deviceKey }
@@ -216,10 +232,10 @@ export const getPersonInfo = async (req, res, next) => {
       });
     }
 
-    const nameMd5 = md5(visitor.name);
-    const imgMd5 = md5(visitor.imgBase64);
+    const nameMd5 = md5(visitor.name || "");
+    const imgMd5 = md5(visitor.imgBase64 || "");
     const typeMd5 = md5(visitor.type.toString());
-    const passtimeMd5 = md5('');
+    const passtimeMd5 = md5(visitor.passtime || "");
 
     const finalMd5 = md5(nameMd5 + imgMd5 + typeMd5 + passtimeMd5);
 
@@ -229,10 +245,10 @@ export const getPersonInfo = async (req, res, next) => {
       success: true,
       data: {
         idcardNum: visitor.idcardNum,
-        name: visitor.name,
-        imgBase64: visitor.imgBase64,
+        name: visitor.name || "",
+        imgBase64: visitor.imgBase64 || "",
         type: visitor.type,
-        passtime: "",
+        passtime: visitor.passtime || "",
         md5: finalMd5,
       },
     });
