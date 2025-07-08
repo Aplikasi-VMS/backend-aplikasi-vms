@@ -124,14 +124,25 @@ export const getVisitorById = async (req, res, next) => {
 
 export const getPersonList = async (req, res, next) => {
   try {
-    const page = parseInt(req.body.page) || 1;
-    const limit = parseInt(req.body.pageSize) || 1000;
+    const { deviceKey, page, pageSize } = req.body;
 
-    const skip = (page - 1) * limit;
+    const device = await prisma.device.findUnique({
+      where: { deviceKey }
+    });
+
+    if (!device) {
+      return res.status(400).json({
+        msg: "Invalid deviceKey",
+        result: 0,
+        success: false,
+      });
+    }
+
+    const skip = (parseInt(page) - 1) * parseInt(pageSize);
 
     const visitors = await prisma.visitor.findMany({
       skip,
-      take: limit,
+      take: parseInt(pageSize),
       orderBy: { id: 'asc' },
     });
 
@@ -171,17 +182,23 @@ export const getPersonList = async (req, res, next) => {
     });
 
   } catch (error) {
+    console.error("getPersonList error:", error);
     next(error);
   }
 };
 
+
 export const getPersonInfo = async (req, res, next) => {
   try {
-    const { idcardNum } = req.body;
+    const { deviceKey, idcardNum } = req.body;
 
-    if (!idcardNum) {
+    const device = await prisma.device.findUnique({
+      where: { deviceKey }
+    });
+
+    if (!device) {
       return res.status(400).json({
-        msg: "idcardNum is required",
+        msg: "Invalid deviceKey",
         result: 0,
         success: false,
       });
