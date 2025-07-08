@@ -1,5 +1,8 @@
-// middlewares/errorMiddleware.js
-import { Prisma } from '@prisma/client';
+// middlewares/error.middleware.js
+
+// Perhatikan bahwa kita mengimpor secara eksplisit tipe error dari '@prisma/client/runtime/library'
+// Ini adalah cara yang lebih robust untuk mendapatkan konstruktor error Prisma
+import { PrismaClientKnownRequestError, PrismaClientValidationError } from '@prisma/client/runtime/library';
 import jwt from 'jsonwebtoken';
 
 const errorMiddleware = (err, req, res, next) => {
@@ -8,7 +11,8 @@ const errorMiddleware = (err, req, res, next) => {
     error.message = err.message;
 
     // Prisma: Record not found
-    if (err instanceof Prisma.PrismaClientKnownRequestError) {
+    // Gunakan konstruktor yang diimpor secara eksplisit
+    if (err instanceof PrismaClientKnownRequestError) {
       if (err.code === 'P2025') {
         error.message = 'Resource not found';
         error.statusCode = 404;
@@ -16,19 +20,22 @@ const errorMiddleware = (err, req, res, next) => {
 
       // Prisma: Unique constraint failed (duplicate)
       if (err.code === 'P2002') {
-        error.message = `Duplicate value for field: ${err.meta.target}`;
+        // Pastikan err.meta.target ada sebelum mengaksesnya
+        const field = Array.isArray(err.meta?.target) ? err.meta.target.join(', ') : err.meta?.target;
+        error.message = `Duplicate value for field: ${field || 'unknown'}`;
         error.statusCode = 400;
       }
 
-      // Prisma: Other known request errors
-      if (!error.statusCode) {
+      // Prisma: Other known request errors (jika belum ada statusCode)
+      if (!error.statusCode) { // Cek apakah statusCode sudah ditetapkan
         error.message = 'Database request error';
         error.statusCode = 400;
       }
     }
 
     // Prisma: Validation error
-    if (err instanceof Prisma.PrismaClientValidationError) {
+    // Gunakan konstruktor yang diimpor secara eksplisit
+    if (err instanceof PrismaClientValidationError) {
       error.message = err.message;
       error.statusCode = 400;
     }
@@ -51,6 +58,7 @@ const errorMiddleware = (err, req, res, next) => {
     }
 
     // SyntaxError from body parser
+    // err.status is from body-parser SyntaxError
     if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
       error.message = 'Invalid JSON payload';
       error.statusCode = 400;
@@ -62,8 +70,12 @@ const errorMiddleware = (err, req, res, next) => {
       error: error.message || 'Server Error',
     });
   } catch (internalError) {
-    console.error('Error in errorMiddleware:', internalError);
-    next(internalError);
+    console.error('Error in errorMiddleware itself (THIS IS BAD!):', internalError);
+    // Jika middleware penanganan error gagal, kirim respons 500 generik
+    res.status(500).json({
+      success: false,
+      error: 'An internal server error occurred while processing another error.',
+    });
   }
 };
 
