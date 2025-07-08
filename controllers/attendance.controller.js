@@ -1,3 +1,5 @@
+import prisma from '../lib/prisma_client.js';
+
 export const dataUpload = async (req, res, next) => {
     try {
         const {
