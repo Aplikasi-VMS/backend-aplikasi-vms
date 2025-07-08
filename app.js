@@ -6,10 +6,11 @@ import deviceRouter from "./routes/device.routes.js";
 import cors from "cors";
 import visitorRouter from "./routes/visitor.routes.js";
 import prisma from "./lib/prisma_client.js";
+import attendanceRouter from "./routes/attendance.routes.js";
 
 const app = express();
 
-app.use(express.json({ limit: '10mb' })); 
+app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: false, limit: '10mb' }));
 
 app.use(cors({
@@ -23,6 +24,7 @@ app.use('/api/auth',authRouter)
 app.use('/api/users', userRouter);
 app.use('/api/devices', deviceRouter);
 app.use('/api/visitors', visitorRouter);
+app.use('/api/attendances', attendanceRouter);
 
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`Server is running on port ${PORT}`);
