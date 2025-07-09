@@ -2,6 +2,7 @@ import { PrismaClientKnownRequestError, PrismaClientValidationError, PrismaClien
 import jwt from 'jsonwebtoken';
 import logger from '../lib/logger.js';
 
+// Fungsi untuk menyensor data sensitif
 function redactSensitiveData(data) {
   if (!data || typeof data !== 'object') return data;
 
@@ -28,22 +29,24 @@ function redactSensitiveData(data) {
 }
 
 const errorMiddleware = (err, req, res, next) => {
+  // Inisialisasi objek error
   const error = {
     ...err,
-    message: err.message || 'An unexpected error occurred',
+    message: err.message || 'Terjadi kesalahan pada sistem',
     statusCode: err.statusCode || 500,
-    isOperational: Boolean(err.isOperational)
+    isOperational: false
   };
 
   try {
+    // 1. Tangani error koneksi database
     if (err instanceof PrismaClientInitializationError) {
-      error.message = 'Service temporarily unavailable. Please try again later.';
+      error.message = 'Layanan sedang tidak tersedia. Silakan coba lagi nanti.';
       error.statusCode = 503;
       error.isOperational = true;
 
       logger.error({
         type: 'DatabaseConnectionError',
-        message: 'Database connection failed',
+        message: 'Gagal terhubung ke database',
         code: 'DB_CONNECTION_FAILED',
         path: req.path,
         method: req.method,
@@ -57,48 +60,52 @@ const errorMiddleware = (err, req, res, next) => {
       });
     }
 
+    // 2. Tangani error Prisma yang diketahui
     if (err instanceof PrismaClientKnownRequestError) {
+      error.isOperational = true;
+
       switch (err.code) {
-        case 'P2025':
-          error.message = 'The requested resource was not found.';
+        case 'P2002': // Duplicate entry
+          const field = err.meta?.target?.join?.('_') || 'field_tidak_diketahui';
+          error.message = `Data sudah ada: ${field} harus unik.`;
+          error.statusCode = 409;
+
+          logger.warn({
+            type: 'DatabaseError',
+            code: 'DUPLICATE_ENTRY',
+            message: `Data duplikat pada field ${field}`,
+            path: req.path,
+            method: req.method,
+            severity: 'WARNING',
+            timestamp: new Date().toISOString(),
+            meta: redactSensitiveData(err.meta)
+          });
+          break;
+
+        case 'P2025': // Record not found
+          error.message = 'Data yang diminta tidak ditemukan.';
           error.statusCode = 404;
           break;
-        case 'P2002':
-          const field = err.meta?.target?.join?.('_') || 'unknown_field';
-          error.message = `The ${field} must be unique.`;
-          error.statusCode = 409;
-          break;
-        case 'P2003':
-          error.message = 'Invalid reference to related resource.';
+
+        case 'P2003': // Foreign key constraint
+          error.message = 'Data terkait tidak valid.';
           error.statusCode = 400;
           break;
-        case 'P2016':
-          error.message = 'Invalid data format in query.';
-          error.statusCode = 400;
-          break;
+
         default:
-          error.message = 'Database operation failed.';
+          error.message = 'Terjadi kesalahan pada operasi database.';
           error.statusCode = 400;
       }
-
-      logger.error({
-        type: 'DatabaseError',
-        code: err.code,
-        message: error.message,
-        path: req.path,
-        method: req.method,
-        severity: error.statusCode >= 500 ? 'ERROR' : 'WARNING',
-        timestamp: new Date().toISOString(),
-        meta: redactSensitiveData(err.meta)
-      });
     }
+    // 3. Tangani error validasi Prisma
     else if (err instanceof PrismaClientValidationError) {
-      error.message = 'Invalid data provided for one or more fields.';
+      error.message = 'Format data tidak valid.';
       error.statusCode = 422;
+      error.isOperational = true;
 
       logger.error({
         type: 'ValidationError',
-        message: 'Data validation failed',
+        message: 'Validasi data gagal',
         path: req.path,
         method: req.method,
         severity: 'WARNING',
@@ -108,67 +115,50 @@ const errorMiddleware = (err, req, res, next) => {
           : undefined
       });
     }
+    // 4. Tangani error JWT
     else if (err instanceof jwt.JsonWebTokenError) {
-      error.message = 'Invalid authentication credentials.';
+      error.message = 'Token autentikasi tidak valid.';
       error.statusCode = 401;
       error.isOperational = true;
-
-      logger.warn({
-        type: 'AuthenticationError',
-        message: 'Invalid JWT token',
-        path: req.path,
-        method: req.method,
-        severity: 'WARNING',
-        timestamp: new Date().toISOString()
-      });
     }
     else if (err instanceof jwt.TokenExpiredError) {
-      error.message = 'Authentication session expired. Please log in again.';
+      error.message = 'Sesi telah berakhir. Silakan login kembali.';
       error.statusCode = 401;
       error.isOperational = true;
-
-      logger.warn({
-        type: 'AuthenticationError',
-        message: 'Expired JWT token',
-        path: req.path,
-        method: req.method,
-        severity: 'WARNING',
-        timestamp: new Date().toISOString()
-      });
     }
+    // 5. Tangani error upload file
     else if (err.code === 'LIMIT_FILE_SIZE') {
-      error.message = 'The uploaded file exceeds the maximum allowed size of 10MB.';
+      error.message = 'Ukuran file melebihi batas maksimal 10MB.';
       error.statusCode = 413;
       error.isOperational = true;
     }
+    // 6. Tangani error parsing JSON
     else if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
-      error.message = 'Invalid request data format.';
+      error.message = 'Format data request tidak valid.';
       error.statusCode = 400;
       error.isOperational = true;
     }
-    else if (error.isOperational) {
-      logger.error('Unhandled error', {
-        name: err.name,
-        message: err.message,
-        stack: err.stack,
-        path: req.path,
-        method: req.method,
-        timestamp: new Date().toISOString()
-      });
-    }
-    else {
+
+    // Jika error belum ditangani (unhandled)
+    if (!error.isOperational) {
       logger.error({
         type: err.name || 'UnknownError',
-        message: 'Unhandled system error',
+        message: 'Kesalahan sistem tidak terduga',
         code: err.code || 'UNKNOWN',
         path: req.path,
         method: req.method,
         severity: 'ERROR',
         timestamp: new Date().toISOString(),
-        stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
+        stack: process.env.NODE_ENV === 'development' ? err.stack : undefined,
+        originalError: redactSensitiveData({
+          message: err.message,
+          code: err.code,
+          ...err
+        })
       });
     }
 
+    // Siapkan response untuk client
     const response = {
       success: false,
       error: error.message,
@@ -181,9 +171,10 @@ const errorMiddleware = (err, req, res, next) => {
       })
     };
 
+    // Sanitasi response di production
     if (process.env.NODE_ENV === 'production') {
       if (error.statusCode >= 500) {
-        response.error = 'An internal server error occurred';
+        response.error = 'Terjadi kesalahan pada server';
       }
       delete response.details;
     }
@@ -191,9 +182,10 @@ const errorMiddleware = (err, req, res, next) => {
     return res.status(error.statusCode).json(response);
 
   } catch (middlewareError) {
+    // Jika error handler sendiri gagal
     logger.error({
       type: 'MiddlewareError',
-      message: 'Error handler failed',
+      message: 'Error handler gagal',
       severity: 'EMERGENCY',
       timestamp: new Date().toISOString(),
       error: {
@@ -208,7 +200,7 @@ const errorMiddleware = (err, req, res, next) => {
 
     return res.status(500).json({
       success: false,
-      error: 'A critical system error occurred'
+      error: 'Kesalahan kritis pada sistem'
     });
   }
 };
