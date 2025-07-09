@@ -84,8 +84,6 @@ export const getAllAttendances = async (req, res, next) => {
                 },
               },
             },
-            // Anda bisa menambahkan kolom lain yang ingin dicari di sini,
-            // misalnya berdasarkan createdAt jika itu string yang diformat.
           ],
         }
       : {};
