@@ -62,7 +62,16 @@ const errorMiddleware = (err, req, res, next) => {
 
       switch (err.code) {
         case 'P2002':
-          const field = err.meta?.target?.join?.('_') || 'field_tidak_diketahui';
+          let field = 'field_tidak_diketahui';
+
+          if (err.meta?.target) {
+            if (Array.isArray(err.meta.target)) {
+              field = err.meta.target.join('_');
+            } else if (typeof err.meta.target === 'string') {
+              field = err.meta.target;
+            }
+          }
+
           error.message = `Data sudah ada: ${field} harus unik.`;
           error.statusCode = 409;
 
@@ -77,6 +86,7 @@ const errorMiddleware = (err, req, res, next) => {
             meta: redactSensitiveData(err.meta)
           });
           break;
+
 
         case 'P2025':
           error.message = 'Data yang diminta tidak ditemukan.';
