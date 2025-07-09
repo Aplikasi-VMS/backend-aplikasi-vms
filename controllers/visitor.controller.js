@@ -68,7 +68,7 @@ export const addVisitor = async (req, res, next) => {
     });
 
     res.status(201).json({ success: true, data: newVisitor });
-  } 
+  }
 
   catch (error) {
     next(error);
@@ -176,10 +176,10 @@ export const getPersonList = async (req, res, next) => {
 
       return {
         idcardNum: v.idcardNum,
-        name: v.name || "",
+        name: "",
         imgBase64: v.imgBase64 || "",
         type: v.type,
-        passtime: v.passtime || "",
+        passtime: "",
         md5: finalMd5,
       };
     });

@@ -67,6 +67,16 @@ npm start
 ```
 Server akan berjalan di http://localhost:PORT.
 
+## 🗄️ Database Design
+
+Berikut adalah desain database untuk proyek ini:
+
+![ERD](./docs/vms_erd.png)
+
+- **users**: data user aplikasi beserta role
+- **devices**: data perangkat Face Recognition
+- **visitors**: data pengunjung
+- **attendances**: log kehadiran pengunjung
 
 # API Documentation
 
