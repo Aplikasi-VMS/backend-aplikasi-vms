@@ -72,7 +72,7 @@ export const getAllAttendances = async (req, res, next) => {
               visitor: {
                 name: {
                   contains: search,
-                  mode: 'insensitive', // Gunakan mode 'insensitive' untuk pencarian case-insensitive
+                  mode: 'insensitive',
                 },
               },
             },
@@ -116,3 +116,31 @@ export const getAllAttendances = async (req, res, next) => {
   }
 };
 
+export const deleteAttendance = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    const existingAttendance = await prisma.attendance.findUnique({
+      where: { id: id },
+    });
+
+    if (!existingAttendance) {
+      return res.status(404).json({
+        success: false,
+        message: 'Absensi tidak ditemukan.',
+      });
+    }
+
+    await prisma.attendance.delete({
+      where: { id: id },
+    });
+
+    res.json({
+      success: true,
+      message: 'Absensi berhasil dihapus.',
+    });
+  } catch (error) {
+    console.error('deleteAttendance error:', error);
+    next(error);
+  }
+};
