@@ -57,3 +57,64 @@ export const dataUpload = async (req, res, next) => {
         });
     }
 };
+
+export const getAllAttendances = async (req, res, next) => {
+  try {
+    const { search = '', page = 1, limit = 10 } = req.query;
+
+    const take = parseInt(limit);
+    const skip = (parseInt(page) - 1) * take;
+
+    const whereCondition = search
+      ? {
+          OR: [
+            {
+              visitor: {
+                name: {
+                  contains: search,
+                  mode: 'insensitive', // Gunakan mode 'insensitive' untuk pencarian case-insensitive
+                },
+              },
+            },
+            {
+              device: {
+                name: {
+                  contains: search,
+                  mode: 'insensitive',
+                },
+              },
+            },
+            // Anda bisa menambahkan kolom lain yang ingin dicari di sini,
+            // misalnya berdasarkan createdAt jika itu string yang diformat.
+          ],
+        }
+      : {};
+
+    const total = await prisma.attendance.count({
+      where: whereCondition,
+    });
+
+    const attendances = await prisma.attendance.findMany({
+      where: whereCondition,
+      include: {
+        visitor: true,
+        device: true,
+      },
+      skip,
+      take,
+      orderBy: { createdAt: 'desc' },
+    });
+
+    res.json({
+      success: true,
+      data: attendances,
+      page: parseInt(page),
+      limit: take,
+      total,
+    });
+  } catch (error) {
+    console.error('getAllAttendances error:', error);
+    next(error);
+  }
+};
+
