@@ -137,6 +137,7 @@ const errorMiddleware = (err, req, res, next) => {
       error.isOperational = true;
     }
 
+
     if (!error.isOperational) {
       logger.error({
         type: err.name || 'UnknownError',
@@ -174,6 +175,7 @@ const errorMiddleware = (err, req, res, next) => {
       delete response.details;
     }
 
+    // PENTING: Tambahkan 'return' di sini
     return res.status(error.statusCode).json(response);
 
   } catch (middlewareError) {
