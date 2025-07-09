@@ -2,7 +2,6 @@ import { PrismaClientKnownRequestError, PrismaClientValidationError, PrismaClien
 import jwt from 'jsonwebtoken';
 import logger from '../lib/logger.js';
 
-// Fungsi untuk menyensor data sensitif
 function redactSensitiveData(data) {
   if (!data || typeof data !== 'object') return data;
 
@@ -29,7 +28,6 @@ function redactSensitiveData(data) {
 }
 
 const errorMiddleware = (err, req, res, next) => {
-  // Inisialisasi objek error
   const error = {
     ...err,
     message: err.message || 'Terjadi kesalahan pada sistem',
@@ -38,7 +36,6 @@ const errorMiddleware = (err, req, res, next) => {
   };
 
   try {
-    // 1. Tangani error koneksi database
     if (err instanceof PrismaClientInitializationError) {
       error.message = 'Layanan sedang tidak tersedia. Silakan coba lagi nanti.';
       error.statusCode = 503;
@@ -60,12 +57,11 @@ const errorMiddleware = (err, req, res, next) => {
       });
     }
 
-    // 2. Tangani error Prisma yang diketahui
     if (err instanceof PrismaClientKnownRequestError) {
       error.isOperational = true;
 
       switch (err.code) {
-        case 'P2002': // Duplicate entry
+        case 'P2002':
           const field = err.meta?.target?.join?.('_') || 'field_tidak_diketahui';
           error.message = `Data sudah ada: ${field} harus unik.`;
           error.statusCode = 409;
@@ -82,12 +78,12 @@ const errorMiddleware = (err, req, res, next) => {
           });
           break;
 
-        case 'P2025': // Record not found
+        case 'P2025':
           error.message = 'Data yang diminta tidak ditemukan.';
           error.statusCode = 404;
           break;
 
-        case 'P2003': // Foreign key constraint
+        case 'P2003':
           error.message = 'Data terkait tidak valid.';
           error.statusCode = 400;
           break;
@@ -95,10 +91,19 @@ const errorMiddleware = (err, req, res, next) => {
         default:
           error.message = 'Terjadi kesalahan pada operasi database.';
           error.statusCode = 400;
+          logger.error({
+            type: 'DatabaseOperationError',
+            code: err.code || 'UNKNOWN_DB_ERROR',
+            message: 'Kesalahan operasi database yang tidak terduga',
+            path: req.path,
+            method: req.method,
+            severity: 'ERROR',
+            timestamp: new Date().toISOString(),
+            originalError: redactSensitiveData(err)
+          });
+          break;
       }
-    }
-    // 3. Tangani error validasi Prisma
-    else if (err instanceof PrismaClientValidationError) {
+    } else if (err instanceof PrismaClientValidationError) {
       error.message = 'Format data tidak valid.';
       error.statusCode = 422;
       error.isOperational = true;
@@ -114,32 +119,24 @@ const errorMiddleware = (err, req, res, next) => {
           ? err.message.split('\n')[0]
           : undefined
       });
-    }
-    // 4. Tangani error JWT
-    else if (err instanceof jwt.JsonWebTokenError) {
+    } else if (err instanceof jwt.JsonWebTokenError) {
       error.message = 'Token autentikasi tidak valid.';
       error.statusCode = 401;
       error.isOperational = true;
-    }
-    else if (err instanceof jwt.TokenExpiredError) {
+    } else if (err instanceof jwt.TokenExpiredError) {
       error.message = 'Sesi telah berakhir. Silakan login kembali.';
       error.statusCode = 401;
       error.isOperational = true;
-    }
-    // 5. Tangani error upload file
-    else if (err.code === 'LIMIT_FILE_SIZE') {
+    } else if (err.code === 'LIMIT_FILE_SIZE') {
       error.message = 'Ukuran file melebihi batas maksimal 10MB.';
       error.statusCode = 413;
       error.isOperational = true;
-    }
-    // 6. Tangani error parsing JSON
-    else if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
+    } else if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
       error.message = 'Format data request tidak valid.';
       error.statusCode = 400;
       error.isOperational = true;
     }
 
-    // Jika error belum ditangani (unhandled)
     if (!error.isOperational) {
       logger.error({
         type: err.name || 'UnknownError',
@@ -158,7 +155,6 @@ const errorMiddleware = (err, req, res, next) => {
       });
     }
 
-    // Siapkan response untuk client
     const response = {
       success: false,
       error: error.message,
@@ -171,7 +167,6 @@ const errorMiddleware = (err, req, res, next) => {
       })
     };
 
-    // Sanitasi response di production
     if (process.env.NODE_ENV === 'production') {
       if (error.statusCode >= 500) {
         response.error = 'Terjadi kesalahan pada server';
@@ -182,7 +177,6 @@ const errorMiddleware = (err, req, res, next) => {
     return res.status(error.statusCode).json(response);
 
   } catch (middlewareError) {
-    // Jika error handler sendiri gagal
     logger.error({
       type: 'MiddlewareError',
       message: 'Error handler gagal',
