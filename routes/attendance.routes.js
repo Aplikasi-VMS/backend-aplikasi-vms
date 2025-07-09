@@ -8,6 +8,6 @@ attendanceRouter.post('/dataUpload', dataUpload);
 
 attendanceRouter.use(authorize);
 attendanceRouter.get('/report', authorizeRole('SUPERUSER', 'RECEPTIONIST'), getAllAttendances);
-attendanceRouter.delete('/report',authorizeRole('SUPERUSER', 'RECEPTIONIST'), deleteAttendance);
+attendanceRouter.delete('/report:id',authorizeRole('SUPERUSER', 'RECEPTIONIST'), deleteAttendance);
 
 export default attendanceRouter;
