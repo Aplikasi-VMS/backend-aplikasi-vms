@@ -1,4 +1,4 @@
-import { PrismaClientKnownRequestError, PrismaClientValidationError, PrismaClientInitializationError } from '@prisma/client/runtime/library';
+import { Prisma } from '../generated/prisma/index.js';
 import jwt from 'jsonwebtoken';
 import logger from '../lib/logger.js';
 
@@ -36,7 +36,7 @@ const errorMiddleware = (err, req, res, next) => {
   };
 
   try {
-    if (err instanceof PrismaClientInitializationError) {
+    if (err instanceof Prisma.PrismaClientInitializationError) {
       error.message = 'Layanan sedang tidak tersedia. Silakan coba lagi nanti.';
       error.statusCode = 503;
       error.isOperational = true;
@@ -57,7 +57,7 @@ const errorMiddleware = (err, req, res, next) => {
       });
     }
 
-    if (err instanceof PrismaClientKnownRequestError) {
+    if (err instanceof Prisma.PrismaClientKnownRequestError) {
       error.isOperational = true;
 
       switch (err.code) {
@@ -91,6 +91,7 @@ const errorMiddleware = (err, req, res, next) => {
         default:
           error.message = 'Terjadi kesalahan pada operasi database.';
           error.statusCode = 400;
+          error.isOperational = true;
           logger.error({
             type: 'DatabaseOperationError',
             code: err.code || 'UNKNOWN_DB_ERROR',
@@ -103,7 +104,7 @@ const errorMiddleware = (err, req, res, next) => {
           });
           break;
       }
-    } else if (err instanceof PrismaClientValidationError) {
+    } else if (err instanceof Prisma.PrismaClientValidationError) {
       error.message = 'Format data tidak valid.';
       error.statusCode = 422;
       error.isOperational = true;
@@ -174,8 +175,6 @@ const errorMiddleware = (err, req, res, next) => {
       }
       delete response.details;
     }
-
-    // PENTING: Tambahkan 'return' di sini
     return res.status(error.statusCode).json(response);
 
   } catch (middlewareError) {
