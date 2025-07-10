@@ -1,5 +1,25 @@
 import prisma from '../lib/prisma_client.js';
 
+function parseExtra(extra) {
+  if (typeof extra === 'string') {
+    try {
+      const parsed = JSON.parse(extra);
+      if (typeof parsed === 'object' && parsed !== null) {
+        return parsed;
+      } else {
+        return extra;
+      }
+    } catch (err) {
+      return extra;
+    }
+  } else if (typeof extra === 'object' && extra !== null) {
+    return extra;
+  } else {
+    return {};
+  }
+}
+
+
 export const dataUpload = async (req, res, next) => {
   try {
     const {
@@ -29,6 +49,8 @@ export const dataUpload = async (req, res, next) => {
       where: { idcardNum: idcardNumber }
     });
 
+    const finalExtra = parseExtra(extra);
+
 
     await prisma.attendance.create({
       data: {
@@ -39,7 +61,7 @@ export const dataUpload = async (req, res, next) => {
         imgBase64,
         time: new Date(parseInt(time)),
         type,
-        extra: extra
+        extra: finalExtra
       }
     });
 
