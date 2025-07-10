@@ -177,7 +177,7 @@ export const getPersonList = async (req, res, next) => {
       return {
         idcardNum: v.idcardNum,
         name: "",
-        imgBase64: v.imgBase64 || "",
+        imgBase64: "",
         type: v.type,
         passtime: "",
         md5: finalMd5,
