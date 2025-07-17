@@ -10,7 +10,7 @@ generator client {
 }
 
 datasource db {
-  provider = "mysql"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -40,8 +40,8 @@ model Visitor {
   id        Int      @id @default(autoincrement())
   name      String
   idcardNum String   @unique
-  imgBase64 String   @db.LongText
-  type      Int // 1: wajah; 2: kartu ic; 3: wajah dan kartu ic
+  imgBase64 String
+  type      Int 
   passtime  String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -55,7 +55,7 @@ model Attendance {
   deviceId  Int
   groupId   String
   recordId  String
-  imgBase64 String   @db.LongText
+  imgBase64 String
   time      DateTime
   type      String
   extra     Json?

@@ -38,7 +38,7 @@ morgan.token('status-colored', (req, res) => {
   const status = res.statusCode;
   let color = 32;
   if (status >= 500) color = 31;
-  else if (status >= 400) color = 33; 
+  else if (status >= 400) color = 33;
   return `\x1b[${color}m${status}\x1b[0m`;
 });
 
